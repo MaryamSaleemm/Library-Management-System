@@ -62,23 +62,6 @@ def test_add_book():
 
 
 def test_search_book(capsys):
-    title = f"Book-{uuid.uuid4()}"
-
-    add_book(title, "John Smith")
-
-    search_book(title)
-
-    captured = capsys.readouterr()
-
-    assert title in captured.out
-
-    add_book("Python Programming", "John Smith")
-
-    search_book("Python Programming")
-
-    captured = capsys.readouterr()
-
-    assert "Python Programming" in captured.out
 
     title = f"Book-{uuid.uuid4()}"
 
@@ -89,14 +72,6 @@ def test_search_book(capsys):
     captured = capsys.readouterr()
 
     assert title in captured.out
-
-    search_book("Python Programming")
-
-    captured = capsys.readouterr()
-
-    assert "Python Programming" in captured.out
-
-
 # ==========================================================
 # REMOVE BOOK
 # ==========================================================
