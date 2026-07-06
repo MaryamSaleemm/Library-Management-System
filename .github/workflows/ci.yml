@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: CI/CD Pipeline
 
 on:
   pull_request:
@@ -7,11 +7,22 @@ on:
       - staging
       - main
 
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
 jobs:
+
   lint-and-test:
+
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v5
 
@@ -30,3 +41,34 @@ jobs:
 
       - name: Run Tests
         run: python -m pytest -v
+
+
+  docker-build-and-push:
+
+    # Only execute after tests pass
+    needs: lint-and-test
+
+    # Only run on pushes to main
+    if: github.event_name == 'push'
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v5
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker Image
+        run: |
+          docker build -t ghcr.io/${{ github.repository_owner }}/library-management-system:latest .
+
+      - name: Push Docker Image
+        run: |
+          docker push ghcr.io/${{ github.repository_owner }}/library-management-system:latest
