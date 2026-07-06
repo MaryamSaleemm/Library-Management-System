@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: CI/CD Pipeline
 
 on:
   pull_request:
@@ -7,11 +7,49 @@ on:
       - staging
       - main
 
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: write
+
 jobs:
-  lint-and-test:
+
+  lint-test-build:
+
     runs-on: ubuntu-latest
 
+    services:
+
+      postgres:
+
+        image: postgres:16
+
+        env:
+          POSTGRES_DB: library
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+
+        ports:
+          - 5432:5432
+
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: library
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v5
 
@@ -25,8 +63,51 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Linter
-        run: python -m flake8 .
+      - name: Verify PostgreSQL Connection
+        run: |
+          python - <<EOF
+          import psycopg2
+          conn = psycopg2.connect(
+              host="localhost",
+              database="library",
+              user="postgres",
+              password="postgres",
+              port=5432
+          )
+          print("PostgreSQL Connected Successfully")
+          conn.close()
+          EOF
 
-      - name: Run Tests
-        run: python -m pytest -v
+      - name: Run Alembic Migration
+        run: |
+          alembic upgrade head
+
+      - name: Run Flake8
+        run: |
+          flake8 . --exclude=migrations
+
+      - name: Run Pytest
+        run: |
+          pytest -v
+
+      - name: Build Docker Image
+        run: |
+          docker build -t library-management-system .
+
+      - name: Login to GitHub Container Registry
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag Docker Image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker tag library-management-system ghcr.io/${{ github.repository_owner }}/library-management-system:latest
+
+      - name: Push Docker Image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker push ghcr.io/${{ github.repository_owner }}/library-management-system:latest
