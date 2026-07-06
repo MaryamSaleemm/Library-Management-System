@@ -60,7 +60,18 @@ def test_add_book():
 # SEARCH BOOK
 # ==========================================================
 
+
 def test_search_book(capsys):
+
+    title = f"Book-{uuid.uuid4()}"
+
+    add_book(title, "John Smith")
+
+    search_book(title)
+
+    captured = capsys.readouterr()
+
+    assert title in captured.out
 
     search_book("Python Programming")
 
