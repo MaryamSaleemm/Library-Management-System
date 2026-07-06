@@ -1,0 +1,21 @@
+[flake8]
+exclude =
+    migrations,
+    __pycache__,
+    .pytest_cache
+
+max-line-length = 100
+
+extend-ignore =
+    E203,
+    E231,
+    E262,
+    E265,
+    E266,
+    E302,
+    E303,
+    E501,
+    W291,
+    W292,
+    W293,
+    E116
