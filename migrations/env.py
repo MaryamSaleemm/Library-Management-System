@@ -10,10 +10,9 @@ from dotenv import load_dotenv
 
 from database import Base
 
-# Import all models so Alembic can detect them
-from models import Book, Member, Loan
-
 # Load .env
+from models import Book, Member, Loan  # noqa: F401
+
 load_dotenv()
 
 config = context.config

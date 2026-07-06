@@ -37,8 +37,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run Linter
-        run: python -m flake8 .
-
+        run: python -m flake8 . --exclude=migrations
       - name: Run Tests
         run: python -m pytest -v
 

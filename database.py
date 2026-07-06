@@ -19,7 +19,6 @@ import os
 
 from dotenv import load_dotenv
 
-from matplotlib import use
 from sqlalchemy import create_engine             #It manages the connection to PostgreSQL from the APP
 from sqlalchemy.orm import declarative_base      # create the Base class that all ORM models will inherit from / Python class is actually a database table
 from sqlalchemy.orm import sessionmaker         #it performs the database operations (i.e crud) 

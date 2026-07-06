@@ -18,7 +18,6 @@ Operations:
 """
 
 from datetime import date
-from datetime import date
 from database import SessionLocal
 
 from models import Book

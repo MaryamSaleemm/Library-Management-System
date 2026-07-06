@@ -13,7 +13,8 @@ Tables:
 2. Members
 3. Loans
 """
-                #What tables should PostgreSQL have?
+
+# What tables should PostgreSQL have?
 from sqlalchemy import Column
 from sqlalchemy import Integer
 from sqlalchemy import String
@@ -25,8 +26,8 @@ from sqlalchemy.orm import relationship
 
 from database import Base
 
-
 # BOOK TABLE
+
 
 class Book(Base):
 
@@ -45,6 +46,7 @@ class Book(Base):
 
 # MEMBER TABLE
 
+
 class Member(Base):
 
     __tablename__ = "members"
@@ -60,8 +62,8 @@ class Member(Base):
     loans = relationship("Loan", back_populates="member")
 
 
-
 # LOAN TABLE
+
 
 class Loan(Base):
 
@@ -83,5 +85,5 @@ class Loan(Base):
     book = relationship("Book", back_populates="loans")
 
     member = relationship("Member", back_populates="loans")
-    
-    #relationship() creates Python objects without sql query,joins
+
+    # relationship() creates Python objects without sql query,joins
