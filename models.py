@@ -13,8 +13,8 @@ Tables:
 2. Members
 3. Loans
 """
+# What tables should PostgreSQL have
 
-# What tables should PostgreSQL have?
 from sqlalchemy import Column
 from sqlalchemy import Integer
 from sqlalchemy import String
