@@ -42,11 +42,11 @@ jobs:
           --health-retries=5
 
     env:
-      DB_HOST: localhost
-      DB_PORT: 5432
-      DB_NAME: library
-      DB_USER: postgres
-      DB_PASSWORD: postgres
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
 
     steps:
 
@@ -66,14 +66,15 @@ jobs:
       - name: Verify PostgreSQL Connection
         run: |
           python - <<EOF
+          import os
           import psycopg2
 
           conn = psycopg2.connect(
-              host="localhost",
-              database="library",
-              user="postgres",
-              password="postgres",
-              port=5432
+              host=os.environ["DB_HOST"],
+              database=os.environ["DB_NAME"],
+              user=os.environ["DB_USER"],
+              password=os.environ["DB_PASSWORD"],
+              port=os.environ["DB_PORT"]
           )
 
           print("PostgreSQL Connected Successfully")
@@ -111,3 +112,11 @@ jobs:
         run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           docker push ghcr.io/$OWNER/library-management-system:latest
+
+
+
+
+          #  the PostgreSQL service initialization variables
+          #  because GitHub Actions doesn't allow secrets in the services.env section. Since that PostgreSQL 
+          #  instance is a temporary CI container created only
+          #  for testing, those values are not production secrets."
