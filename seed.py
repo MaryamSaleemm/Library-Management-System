@@ -11,6 +11,13 @@ This script:
 3. Prevents duplicate data.
 """
 
+
+
+
+
+
+
+
 from sqlalchemy.orm import Session
 
 from database import SessionLocal
