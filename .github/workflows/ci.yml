@@ -93,12 +93,6 @@ jobs:
         run: |
           pytest -v
 
-      - name: Build Docker Image
-        if: github.event_name == 'push'
-        run: |
-          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          docker build -t ghcr.io/$OWNER/library-management-system:latest .
-
       - name: Login to GitHub Container Registry
         if: github.event_name == 'push'
         uses: docker/login-action@v3
@@ -107,13 +101,76 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build Docker Image
+        if: github.event_name == 'push'
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          docker build -t ghcr.io/$OWNER/library-management-system:latest .
+
       - name: Push Docker Image
         if: github.event_name == 'push'
         run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           docker push ghcr.io/$OWNER/library-management-system:latest
 
+  deploy:
 
+    needs: lint-test-build
+
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+
+          script: |
+
+            echo "Starting PostgreSQL..."
+
+            docker start postgres_db || true
+
+            echo "Pulling latest image..."
+
+            docker pull ghcr.io/maryamsaleemm/library-management-system:latest
+
+            echo "Stopping old application..."
+
+            docker stop library_app || true
+            docker rm library_app || true
+
+            echo "Running Alembic migrations..."
+
+            docker run --rm \
+              --network host \
+              -e DB_HOST=localhost \
+              -e DB_PORT=5432 \
+              -e DB_NAME=library \
+              -e DB_USER=postgres \
+              -e DB_PASSWORD=postgres \
+              --entrypoint alembic \
+              ghcr.io/maryamsaleemm/library-management-system:latest \
+              upgrade head
+
+            echo "Starting new application..."
+
+            docker run -d \
+              --name library_app \
+              --network host \
+              -e DB_HOST=localhost \
+              -e DB_PORT=5432 \
+              -e DB_NAME=library \
+              -e DB_USER=postgres \
+              -e DB_PASSWORD=postgres \
+              ghcr.io/maryamsaleemm/library-management-system:latest
+
+            docker ps
 
 
           #  the PostgreSQL service initialization variables
