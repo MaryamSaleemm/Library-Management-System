@@ -176,4 +176,4 @@ jobs:
           #  the PostgreSQL service initialization variables
           #  because GitHub Actions doesn't allow secrets in the services.env section. Since that PostgreSQL 
           #  instance is a temporary CI container created only
-          #  for testing, those values are not production secrets."
+          #  for the testing, those values are not production secrets."
