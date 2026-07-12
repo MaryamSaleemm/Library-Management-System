@@ -171,7 +171,7 @@ def test_loan_book():
         phone="03000000000",
         hashed_password=hash_password("password123"),
         role="member"
-)
+    )
 
     db.add(book)
 
@@ -243,7 +243,7 @@ def test_return_book():
         phone="03110000000",
         hashed_password=hash_password("password123"),
         role="member"
-)
+    )
 
     db.add(book)
 
