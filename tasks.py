@@ -1,33 +1,71 @@
+from celery import Celery
+from datetime import date
+from pathlib import Path
 import os
-from datetime import date, timedelta
-
-from celery_worker import celery
-
-LOG_FOLDER = "logs"
-LOG_FILE = os.path.join(LOG_FOLDER, "notifications.log")
 
 
-@celery.task
-def send_borrow_notification(
-    username: str,
-    book_title: str,
-):
+# CELERY CONFIGURATION
 
-    os.makedirs(LOG_FOLDER, exist_ok=True)
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = os.getenv("REDIS_PORT", "6379")
 
-    due_date = date.today() + timedelta(days=14)
+celery = Celery(
+    "library",
+    broker=f"redis://{REDIS_HOST}:{REDIS_PORT}/0",
+    backend=f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
+)
 
-    with open(
-        LOG_FILE,
-        "a",
-        encoding="utf-8",
-    ) as file:
+# BORROW NOTIFICATION TASK
 
-        file.write("\n")
-        file.write("CELERY NOTIFICATION\n")
-        file.write(f"Member      : {username}\n")
-        file.write(f"Book        : {book_title}\n")
-        file.write(f"Borrow Date : {date.today()}\n")
-        file.write(f"Due Date    : {due_date}\n")
-        file.write("Status      : Borrowed Successfully\n")
-        file.write("-" * 60 + "\n")
+@celery.task(name="tasks.send_borrow_notification")
+def send_borrow_notification(username: str, book_title: str):
+
+    try:
+
+        # Make sure logs directory exists
+        log_directory = Path("/app/logs")
+        log_directory.mkdir(
+            parents=True,
+            exist_ok=True
+        )
+
+        log_file = log_directory / "notifications.log"
+
+
+        message = f"""
+        
+CELERY NOTIFICATION
+
+Member      : {username}
+Book        : {book_title}
+Borrow Date : {date.today()}
+Status      : Borrowed Successfully
+
+
+
+"""
+
+
+        # Append notification
+        with open(log_file, "a") as file:
+            file.write(message)
+
+
+        print(
+            f"Notification logged for {username}"
+        )
+
+
+        return {
+            "status": "success",
+            "message": "Notification logged successfully"
+        }
+
+
+    except Exception as e:
+
+        print(
+            f"Notification error: {str(e)}"
+        )
+
+        raise e
