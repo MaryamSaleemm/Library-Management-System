@@ -22,7 +22,9 @@ from library_service import (
     return_book,
     search_book,
 )
-from models import Book, Loan, Member
+from models import Book
+from models import Loan
+from models import Member
 
 
 # ADD BOOK
@@ -31,7 +33,10 @@ def test_add_book():
 
     title = f"Book-{uuid.uuid4()}"
 
-    add_book(title, "Test Author")
+    add_book(
+        title,
+        "Test Author"
+    )
 
     db = SessionLocal()
 
@@ -54,13 +59,28 @@ def test_search_book(capsys):
 
     title = f"Book-{uuid.uuid4()}"
 
-    add_book(title, "John Smith")
+    add_book(
+        title,
+        "John Smith"
+    )
 
     search_book(title)
 
     captured = capsys.readouterr()
 
     assert title in captured.out
+
+    db = SessionLocal()
+
+    book = db.query(Book).filter(
+        Book.title == title
+    ).first()
+
+    if book:
+        db.delete(book)
+        db.commit()
+
+    db.close()
 
 
 # REMOVE BOOK
@@ -72,7 +92,8 @@ def test_remove_book():
     book = Book(
         title=f"Delete-{uuid.uuid4()}",
         author="Delete Author",
-        available=True
+        available=True,
+        is_deleted=False
     )
 
     db.add(book)
@@ -116,12 +137,12 @@ def test_register_member():
 
     assert member is not None
     assert member.name == "PyTest User"
+    assert member.role == "member"
 
     db.delete(member)
     db.commit()
     db.close()
-
-
+    
 # LOAN BOOK
 
 def test_loan_book():
@@ -131,7 +152,8 @@ def test_loan_book():
     book = Book(
         title=f"Loan-{uuid.uuid4()}",
         author="Loan Author",
-        available=True
+        available=True,
+        is_deleted=False
     )
 
     member = Member(
@@ -145,6 +167,7 @@ def test_loan_book():
 
     db.add(book)
     db.add(member)
+
     db.commit()
 
     db.refresh(book)
@@ -155,7 +178,10 @@ def test_loan_book():
 
     db.close()
 
-    loan_book(book_id, member_id)
+    loan_book(
+        book_id,
+        member_id
+    )
 
     db = SessionLocal()
 
@@ -172,6 +198,11 @@ def test_loan_book():
 
     assert updated_book.available is False
 
+    db.delete(loan)
+    db.delete(updated_book)
+    db.delete(member)
+
+    db.commit()
     db.close()
 
 
@@ -184,7 +215,8 @@ def test_return_book():
     book = Book(
         title=f"Return-{uuid.uuid4()}",
         author="Return Author",
-        available=True
+        available=True,
+        is_deleted=False
     )
 
     member = Member(
@@ -198,6 +230,7 @@ def test_return_book():
 
     db.add(book)
     db.add(member)
+
     db.commit()
 
     db.refresh(book)
@@ -206,12 +239,15 @@ def test_return_book():
     loan = Loan(
         book_id=book.id,
         member_id=member.id,
+        loan_date=None,
+        return_date=None,
         status="borrowed"
     )
 
     book.available = False
 
     db.add(loan)
+
     db.commit()
 
     book_id = book.id
@@ -236,15 +272,7 @@ def test_return_book():
 
     db.delete(updated_loan)
     db.delete(updated_book)
-
-    member = db.query(Member).filter(
-        Member.email.like("%@example.com")
-    ).filter(
-        Member.name == "Return Member"
-    ).first()
-
-    if member:
-        db.delete(member)
+    db.delete(member)
 
     db.commit()
     db.close()

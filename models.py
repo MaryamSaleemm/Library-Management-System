@@ -39,7 +39,8 @@ class Book(Base):
     author = Column(String, nullable=False)
 
     available = Column(Boolean, nullable=False, default=True)
-    is_deleted = Column(Boolean, nullable=False, default=False)    # Relationship
+    is_deleted = Column(Boolean, nullable=False, default=False)   
+    
     loans = relationship("Loan", back_populates="book")  
 
 
