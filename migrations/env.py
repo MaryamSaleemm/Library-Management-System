@@ -15,6 +15,9 @@ from models import Book, Member, Loan  # noqa: F401
 
 load_dotenv()
 
+print("DB_USER =", os.getenv("DB_USER"))
+print("DB_PASSWORD =", os.getenv("DB_PASSWORD"))
+
 config = context.config
 
 # Build the database URL from environment variables
