@@ -1,71 +1,57 @@
-from celery import Celery
 from datetime import date
 from pathlib import Path
-import os
+
+from celery_worker import celery
 
 
-# CELERY CONFIGURATION
+LOG_DIRECTORY = Path("/app/logs")
+LOG_FILE = LOG_DIRECTORY / "notifications.log"
 
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = os.getenv("REDIS_PORT", "6379")
-
-celery = Celery(
-    "library",
-    broker=f"redis://{REDIS_HOST}:{REDIS_PORT}/0",
-    backend=f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
-)
-
-# BORROW NOTIFICATION TASK
 
 @celery.task(name="tasks.send_borrow_notification")
 def send_borrow_notification(username: str, book_title: str):
+    """
+    Background task that logs a borrow notification.
+    """
 
     try:
-
-        # Make sure logs directory exists
-        log_directory = Path("/app/logs")
-        log_directory.mkdir(
+        # Create logs directory if it doesn't exist
+        LOG_DIRECTORY.mkdir(
             parents=True,
             exist_ok=True
         )
 
-        log_file = log_directory / "notifications.log"
-
-
-        message = f"""
-        
-CELERY NOTIFICATION
-
-Member      : {username}
-Book        : {book_title}
-Borrow Date : {date.today()}
-Status      : Borrowed Successfully
-
-
-
-"""
-
-
-        # Append notification
-        with open(log_file, "a") as file:
-            file.write(message)
-
-
-        print(
-            f"Notification logged for {username}"
+        message = (
+            f"\n"
+            f"CELERY NOTIFICATION\n"
+            f"Member      : {username}\n"
+            f"Book        : {book_title}\n"
+            f"Borrow Date : {date.today()}\n"
+            f"Status      : Borrowed Successfully\n"
+            f"{'-' * 60}\n"
         )
 
+        # Append notification to log file
+        with open(
+            LOG_FILE,
+            "a",
+            encoding="utf-8"
+        ) as file:
+            file.write(message)
+
+        print(
+            f"Notification logged for {username}",
+            flush=True
+        )
 
         return {
             "status": "success",
             "message": "Notification logged successfully"
         }
 
-
     except Exception as e:
-
         print(
-            f"Notification error: {str(e)}"
+            f"Notification error: {e}",
+            flush=True
         )
-
-        raise e
+        raise
