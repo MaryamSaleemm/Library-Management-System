@@ -12,20 +12,20 @@ Requirements:
 
 import uuid
 
+from auth import hash_password
 from database import SessionLocal
-
-from models import Book
-from models import Member
-from models import Loan
-
 from library_service import (
     add_book,
-    search_book,
-    remove_book,
-    register_member,
     loan_book,
+    register_member,
+    remove_book,
     return_book,
+    search_book,
 )
+from models import Book
+from models import Loan
+from models import Member
+
 
 # ADD BOOK
 
@@ -55,12 +55,14 @@ def test_add_book():
 
 # SEARCH BOOK
 
-
 def test_search_book(capsys):
 
     title = f"Book-{uuid.uuid4()}"
 
-    add_book(title, "John Smith")
+    add_book(
+        title,
+        "John Smith"
+    )
 
     search_book(title)
 
@@ -68,27 +70,34 @@ def test_search_book(capsys):
 
     assert title in captured.out
 
-# REMOVE BOOK
+    db = SessionLocal()
 
+    book = db.query(Book).filter(
+        Book.title == title
+    ).first()
+
+    if book:
+        db.delete(book)
+        db.commit()
+
+    db.close()
+
+
+# REMOVE BOOK
 
 def test_remove_book():
 
     db = SessionLocal()
 
     book = Book(
-
         title=f"Delete-{uuid.uuid4()}",
-
         author="Delete Author",
-
-        available=True
-
+        available=True,
+        is_deleted=False
     )
 
     db.add(book)
-
     db.commit()
-
     db.refresh(book)
 
     book_id = book.id
@@ -100,9 +109,7 @@ def test_remove_book():
     db = SessionLocal()
 
     deleted = db.query(Book).filter(
-
         Book.id == book_id
-
     ).first()
 
     assert deleted is None
@@ -112,111 +119,90 @@ def test_remove_book():
 
 # REGISTER MEMBER
 
-
 def test_register_member():
 
     email = f"{uuid.uuid4()}@example.com"
 
     register_member(
-
         "PyTest User",
-
         email,
-
         "03001234567"
-
     )
 
     db = SessionLocal()
 
     member = db.query(Member).filter(
-
         Member.email == email
-
     ).first()
 
     assert member is not None
-
     assert member.name == "PyTest User"
+    assert member.role == "member"
 
     db.delete(member)
-
     db.commit()
-
     db.close()
-
-
+    
 # LOAN BOOK
-
 
 def test_loan_book():
 
     db = SessionLocal()
 
     book = Book(
-
         title=f"Loan-{uuid.uuid4()}",
-
         author="Loan Author",
-
-        available=True
-
+        available=True,
+        is_deleted=False
     )
 
     member = Member(
-
         name="Loan Member",
-
+        username=f"user_{uuid.uuid4().hex[:8]}",
         email=f"{uuid.uuid4()}@example.com",
-
-        phone="03000000000"
-
+        phone="03000000000",
+        hashed_password=hash_password("password123"),
+        role="member"
     )
 
     db.add(book)
-
     db.add(member)
 
     db.commit()
 
     db.refresh(book)
-
     db.refresh(member)
 
     book_id = book.id
-
     member_id = member.id
 
     db.close()
 
     loan_book(
-
         book_id,
-
         member_id
-
     )
 
     db = SessionLocal()
 
     loan = db.query(Loan).filter(
-
         Loan.book_id == book_id
-
     ).first()
 
     assert loan is not None
-
-    assert loan.status == "Borrowed"
+    assert loan.status == "borrowed"
 
     updated_book = db.query(Book).filter(
-
         Book.id == book_id
-
     ).first()
 
     assert updated_book.available is False
 
+    db.delete(loan)
+    db.delete(updated_book)
+    db.delete(member)
+
+    db.commit()
     db.close()
 
 
@@ -227,43 +213,35 @@ def test_return_book():
     db = SessionLocal()
 
     book = Book(
-
         title=f"Return-{uuid.uuid4()}",
-
         author="Return Author",
-
-        available=True
-
+        available=True,
+        is_deleted=False
     )
 
     member = Member(
-
         name="Return Member",
-
+        username=f"user_{uuid.uuid4().hex[:8]}",
         email=f"{uuid.uuid4()}@example.com",
-
-        phone="03110000000"
-
+        phone="03110000000",
+        hashed_password=hash_password("password123"),
+        role="member"
     )
 
     db.add(book)
-
     db.add(member)
 
     db.commit()
 
     db.refresh(book)
-
     db.refresh(member)
 
     loan = Loan(
-
         book_id=book.id,
-
         member_id=member.id,
-
-        status="Borrowed"
-
+        loan_date=None,
+        return_date=None,
+        status="borrowed"
     )
 
     book.available = False
@@ -281,41 +259,20 @@ def test_return_book():
     db = SessionLocal()
 
     updated_loan = db.query(Loan).filter(
-
         Loan.book_id == book_id
-
     ).first()
 
     updated_book = db.query(Book).filter(
-
         Book.id == book_id
-
     ).first()
 
-    assert updated_loan.status == "Returned"
-
+    assert updated_loan.status == "returned"
     assert updated_loan.return_date is not None
-
     assert updated_book.available is True
 
     db.delete(updated_loan)
-
     db.delete(updated_book)
-
-    member = db.query(Member).filter(
-
-        Member.email.like("%@example.com")
-
-    ).filter(
-
-        Member.name == "Return Member"
-
-    ).first()
-
-    if member:
-
-        db.delete(member)
+    db.delete(member)
 
     db.commit()
-
     db.close()
