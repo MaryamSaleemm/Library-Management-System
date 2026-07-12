@@ -6,50 +6,40 @@ Purpose:
 Contains all database operations using SQLAlchemy ORM.
 
 The CLI calls these functions instead of writing SQL queries.
-
-Operations:
-1. Add Book
-2. List Books
-3. Search Book
-4. Remove Book
-5. Register Member
-6. Loan Book
-7. Return Book
 """
 
 from datetime import date
-from database import SessionLocal
 
-from models import Book
-from models import Member
-from models import Loan
+from auth import hash_password
+from database import SessionLocal
+from models import Book, Loan, Member
 
 
 # BOOK OPERATIONS
 
 def add_book(title, author):
 
-    db = SessionLocal()                 #SQLAlchemy creates a new database session,Every function opens its own session.
+    db = SessionLocal()
 
     try:
 
-        book = Book(                    #It simply creates a Python object,It only exists in memory.
+        book = Book(
             title=title,
             author=author,
-            available=True
+            available=True,
+            is_deleted=False
         )
 
-        db.add(book)                    # Want to insert this object into the database, still postgre has not executed any sql query yet
-
-        db.commit()                     #Now SQLAlchemy sends SQL to PostgreSQL.
+        db.add(book)
+        db.commit()
+        db.refresh(book)
 
         print("\nBook Added Successfully!")
         print(f"Book ID : {book.id}")
 
     finally:
 
-        db.close()                  #session closed
-
+        db.close()
 
 
 def list_books():
@@ -58,14 +48,16 @@ def list_books():
 
     try:
 
-        books = db.query(Book).all()
+        books = db.query(Book).filter(
+            Book.is_deleted.is_(False)
+        ).all()
 
         if not books:
 
             print("\nNo Books Found.")
             return
 
-        print("\n BOOK LIST \n")
+        print("\nBOOK LIST\n")
 
         for book in books:
 
@@ -87,7 +79,10 @@ def search_book(title):
 
     try:
 
-        book = db.query(Book).filter(Book.title == title).first()
+        book = db.query(Book).filter(
+            Book.title == title,
+            Book.is_deleted.is_(False)
+        ).first()
 
         if book:
 
@@ -113,7 +108,10 @@ def remove_book(book_id):
 
     try:
 
-        book = db.query(Book).filter(Book.id == book_id).first()
+        book = db.query(Book).filter(
+            Book.id == book_id,
+            Book.is_deleted.is_(False)
+        ).first()
 
         if not book:
 
@@ -139,13 +137,16 @@ def register_member(name, email, phone):
 
     try:
 
+        username = email.split("@")[0]
+
         member = Member(
 
             name=name,
-
+            username=username,
             email=email,
-
-            phone=phone
+            phone=phone,
+            hashed_password=hash_password("password123"),
+            role="member"
 
         )
 
@@ -167,21 +168,28 @@ def list_members():
 
     db = SessionLocal()
 
-    members = db.query(Member).all()
+    try:
 
-    print("\nMembers\n")
+        members = db.query(Member).all()
 
-    for member in members:
+        print("\nMEMBERS\n")
 
-        print(
-            member.id,
-            member.name,
-            member.email,
-            member.phone
-        )
+        for member in members:
 
-    db.close()
+            print(
 
+                member.id,
+                member.name,
+                member.username,
+                member.email,
+                member.phone,
+                member.role
+
+            )
+
+    finally:
+
+        db.close()
 
 
 # LOAN OPERATIONS
@@ -192,46 +200,42 @@ def loan_book(book_id, member_id):
 
     try:
 
-        # Find the book
-        book = db.query(Book).filter(Book.id == book_id).first()
+        book = db.query(Book).filter(
+            Book.id == book_id,
+            Book.is_deleted.is_(False)
+        ).first()
 
         if not book:
 
             print("\nBook Not Found.")
             return
 
-        # Check availability
         if not book.available:
 
-            print("\nBook is already loaned.")
+            print("\nBook is already borrowed.")
             return
 
-        # Find member
-        member = db.query(Member).filter(Member.id == member_id).first()
+        member = db.query(Member).filter(
+            Member.id == member_id
+        ).first()
 
         if not member:
 
             print("\nMember Not Found.")
             return
 
-        # Create loan record
         loan = Loan(
 
             book_id=book.id,
-
             member_id=member.id,
-
             loan_date=date.today(),
-
             return_date=None,
-
-            status="Borrowed"
+            status="borrowed"
 
         )
 
         db.add(loan)
 
-        # Mark book unavailable
         book.available = False
 
         db.commit()
@@ -252,28 +256,24 @@ def return_book(book_id):
 
     try:
 
-        # Find active loan
         loan = db.query(Loan).filter(
 
             Loan.book_id == book_id,
-
-            Loan.status == "Borrowed"
+            Loan.status == "borrowed"
 
         ).first()
 
         if not loan:
 
-            print("\nThis book is not currently loaned.")
+            print("\nBook is not currently borrowed.")
             return
 
-        # Update loan
         loan.return_date = date.today()
+        loan.status = "returned"
 
-        loan.status = "Returned"
-
-        # Make book 
-        # available again
-        book = db.query(Book).filter(Book.id == book_id).first()
+        book = db.query(Book).filter(
+            Book.id == book_id
+        ).first()
 
         if book:
 
@@ -286,32 +286,31 @@ def return_book(book_id):
     finally:
 
         db.close()
-        
-        
+
+
 def list_loans():
 
     db = SessionLocal()
 
-    loans = db.query(Loan).all()
+    try:
 
-    print("\nLoans\n")
+        loans = db.query(Loan).all()
 
-    for loan in loans:
+        print("\nLOANS\n")
 
-        print(
+        for loan in loans:
 
-            "Loan ID:", loan.id,
+            print(
 
-            "| Book:", loan.book.title,
+                "Loan ID:", loan.id,
+                "| Book:", loan.book.title,
+                "| Member:", loan.member.name,
+                "| Loan Date:", loan.loan_date,
+                "| Return Date:", loan.return_date,
+                "| Status:", loan.status
 
-            "| Member:", loan.member.name,
+            )
 
-            "| Loan Date:", loan.loan_date,
+    finally:
 
-            "| Return Date:", loan.return_date,
-
-            "| Status:", loan.status
-
-        )
-
-    db.close()
+        db.close()

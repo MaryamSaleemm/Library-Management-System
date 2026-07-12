@@ -21,7 +21,6 @@ from sqlalchemy import String
 from sqlalchemy import Boolean
 from sqlalchemy import Date
 from sqlalchemy import ForeignKey
-
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -40,8 +39,9 @@ class Book(Base):
     author = Column(String, nullable=False)
 
     available = Column(Boolean, nullable=False, default=True)
-    # Relationship
-    loans = relationship("Loan", back_populates="book")
+    is_deleted = Column(Boolean, nullable=False, default=False)   
+    
+    loans = relationship("Loan", back_populates="book")  
 
 
 # MEMBER TABLE
@@ -55,13 +55,23 @@ class Member(Base):
 
     name = Column(String, nullable=False)
 
-    email = Column(String, unique=True)
+    # Username used during login
+    username = Column(String, unique=True, nullable=False)
+
+    email = Column(String, unique=True, nullable=False)
 
     phone = Column(String)
 
-    loans = relationship("Loan", back_populates="member")
+    # Never store plain passwords
+    # We will store a bcrypt hash here
+    hashed_password = Column(String, nullable=False)
 
+    # Determines what the user is allowed to do
+    role = Column(String, nullable=False, default="member")
 
+    # Relationship with loans
+    loans = relationship("Loan", back_populates="member")  #member.loans
+    
 # LOAN TABLE
 
 
