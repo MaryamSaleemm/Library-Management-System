@@ -165,12 +165,12 @@ def test_loan_book():
     )
 
     member = Member(
-    name="Loan Member",
-    username=f"user_{uuid.uuid4().hex[:8]}",
-    email=f"{uuid.uuid4()}@example.com",
-    phone="03000000000",
-    hashed_password=hash_password("password123"),
-    role="member"
+        name="Loan Member",
+        username=f"user_{uuid.uuid4().hex[:8]}",
+        email=f"{uuid.uuid4()}@example.com",
+        phone="03000000000",
+        hashed_password=hash_password("password123"),
+        role="member"
 )
 
     db.add(book)
@@ -237,12 +237,12 @@ def test_return_book():
     )
 
     member = Member(
-    name="Return Member",
-    username=f"user_{uuid.uuid4().hex[:8]}",
-    email=f"{uuid.uuid4()}@example.com",
-    phone="03110000000",
-    hashed_password=hash_password("password123"),
-    role="member"
+        name="Return Member",
+        username=f"user_{uuid.uuid4().hex[:8]}",
+        email=f"{uuid.uuid4()}@example.com",
+        phone="03110000000",
+        hashed_password=hash_password("password123"),
+        role="member"
 )
 
     db.add(book)
