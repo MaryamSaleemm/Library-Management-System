@@ -1,33 +1,57 @@
-import os
-from datetime import date, timedelta
+from datetime import date
+from pathlib import Path
 
 from celery_worker import celery
 
-LOG_FOLDER = "logs"
-LOG_FILE = os.path.join(LOG_FOLDER, "notifications.log")
+
+LOG_DIRECTORY = Path("/app/logs")
+LOG_FILE = LOG_DIRECTORY / "notifications.log"
 
 
-@celery.task
-def send_borrow_notification(
-    username: str,
-    book_title: str,
-):
+@celery.task(name="tasks.send_borrow_notification")
+def send_borrow_notification(username: str, book_title: str):
+    """
+    Background task that logs a borrow notification.
+    """
 
-    os.makedirs(LOG_FOLDER, exist_ok=True)
+    try:
+        # Create logs directory if it doesn't exist
+        LOG_DIRECTORY.mkdir(
+            parents=True,
+            exist_ok=True
+        )
 
-    due_date = date.today() + timedelta(days=14)
+        message = (
+            f"\n"
+            f"CELERY NOTIFICATION\n"
+            f"Member      : {username}\n"
+            f"Book        : {book_title}\n"
+            f"Borrow Date : {date.today()}\n"
+            f"Status      : Borrowed Successfully\n"
+            f"{'-' * 60}\n"
+        )
 
-    with open(
-        LOG_FILE,
-        "a",
-        encoding="utf-8",
-    ) as file:
+        # Append notification to log file
+        with open(
+            LOG_FILE,
+            "a",
+            encoding="utf-8"
+        ) as file:
+            file.write(message)
 
-        file.write("\n")
-        file.write("CELERY NOTIFICATION\n")
-        file.write(f"Member      : {username}\n")
-        file.write(f"Book        : {book_title}\n")
-        file.write(f"Borrow Date : {date.today()}\n")
-        file.write(f"Due Date    : {due_date}\n")
-        file.write("Status      : Borrowed Successfully\n")
-        file.write("-" * 60 + "\n")
+        print(
+            f"Notification logged for {username}",
+            flush=True
+        )
+
+        return {
+            "status": "success",
+            "message": "Notification logged successfully"
+        }
+
+    except Exception as e:
+        print(
+            f"Notification error: {e}",
+            flush=True
+        )
+        raise

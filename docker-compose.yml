@@ -1,6 +1,9 @@
 services:
 
+  # PostgreSQL Database
+
   postgres:
+
     image: postgres:16
 
     container_name: postgres_db
@@ -25,122 +28,98 @@ services:
       retries: 5
       start_period: 10s
 
+
+  # Redis Broker for Celery
+
+  redis:
+
+    image: redis:7
+
+    container_name: redis_server
+
+    restart: unless-stopped
+
+    ports:
+      - "6379:6379"
+
+
+  # FastAPI Application
+
   app:
+
     build: .
 
     container_name: library_app
 
-    restart: "no"
+    restart: unless-stopped
 
     depends_on:
+
       postgres:
         condition: service_healthy
+
+      redis:
+        condition: service_started
 
     env_file:
       - .env
 
+    volumes:
+      # Share logs folder with host machine
+      - ./logs:/app/logs
+
+    ports:
+      - "8000:8000"
+
+    command:
+      uvicorn main:app --host 0.0.0.0 --port 8000
+
+
+  # Celery Worker
+  
+  celery_worker:
+
+    build: .
+
+    container_name: celery_worker
+
+    restart: unless-stopped
+
+    depends_on:
+
+      redis:
+        condition: service_started
+
+      postgres:
+        condition: service_healthy
+
+
+    env_file:
+      - .env
+
+
+    environment:
+
+      REDIS_HOST: redis
+
+      REDIS_PORT: 6379
+
+
+    volumes:
+
+      # IMPORTANT:
+      # Celery writes here
+      # Host VS Code logs folder receives it
+      - ./logs:/app/logs
+
+
+    command:
+
+      celery -A tasks.celery worker --loglevel=info
+
+
+# Persistent Database Volume
+
 volumes:
+
   postgres_data:
-
-
-
-# # Docker Compose Configuration
-# # This file starts both containers together:
-# # 1. PostgreSQL Database
-# # 2. Python Library Management CLI
-# # ========================================================
-
-# services:
-
-#   # ======================================================
-#   # PostgreSQL Database Container
-#   # ======================================================
-#   postgres:
-
-#     # Official PostgreSQL Docker image
-#     image: postgres:16
-
-#     # Friendly name for the container
-#     container_name: postgres_db
-
-#     # Restart automatically unless stopped manually
-#     restart: unless-stopped
-
-#     # ----------------------------------------------------
-#     # Environment variables required by PostgreSQL
-#     # These values are read from the .env file.
-#     # ----------------------------------------------------
-#     environment:
-#       POSTGRES_DB: ${DB_NAME}
-#       POSTGRES_USER: ${DB_USER}
-#       POSTGRES_PASSWORD: ${DB_PASSWORD}
-
-#     # ----------------------------------------------------
-#     # Expose PostgreSQL to the host machine.
-#     # Format:
-#     # HOST_PORT : CONTAINER_PORT
-#     # ----------------------------------------------------
-#     ports:
-#       - "5432:5432"
-
-#     # ----------------------------------------------------
-#     # Named Docker volume.
-#     # Keeps database data even if the container is deleted.
-#     # ----------------------------------------------------
-#     volumes:
-#       - postgres_data:/var/lib/postgresql/data
-
-#     # ----------------------------------------------------
-#     # Health Check
-#     # Docker checks if PostgreSQL is ready to accept
-#     # connections before allowing dependent containers
-#     # to start.
-#     # ----------------------------------------------------
-#     healthcheck:
-#       test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
-#       interval: 5s
-#       timeout: 5s
-#       retries: 5
-#       start_period: 10s
-
-
-
-#   # ======================================================
-#   # Python CLI Application Container
-#   # ======================================================
-#   app:
-
-#     # Build the Docker image using the Dockerfile
-#     # in the current project folder.
-#     build: .
-
-#     # Friendly name for the container
-#     container_name: library_app
-
-#     # Do not restart automatically after the CLI finishes.
-#     restart: "no"
-
-#     # ----------------------------------------------------
-#     # Wait until PostgreSQL becomes healthy.
-#     # Prevents "Connection Refused" errors during startup.
-#     # ----------------------------------------------------
-#     depends_on:
-#       postgres:
-#         condition: service_healthy
-
-#     # ----------------------------------------------------
-#     # Load environment variables from the .env file.
-#     # The application uses these values to connect
-#     # to PostgreSQL.
-#     # ----------------------------------------------------
-#     env_file:
-#       - .env
-
-
-# # ========================================================
-# # Named Docker Volume
-# # Stores PostgreSQL data outside the container.
-# # Data remains safe even if the container is removed.
-# # ========================================================
-# volumes:
-#   postgres_data:
