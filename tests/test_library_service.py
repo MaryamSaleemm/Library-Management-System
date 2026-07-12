@@ -17,6 +17,7 @@ from database import SessionLocal
 from models import Book
 from models import Member
 from models import Loan
+from auth import hash_password
 
 from library_service import (
     add_book,
@@ -164,14 +165,13 @@ def test_loan_book():
     )
 
     member = Member(
-
-        name="Loan Member",
-
-        email=f"{uuid.uuid4()}@example.com",
-
-        phone="03000000000"
-
-    )
+    name="Loan Member",
+    username=f"user_{uuid.uuid4().hex[:8]}",
+    email=f"{uuid.uuid4()}@example.com",
+    phone="03000000000",
+    hashed_password=hash_password("password123"),
+    role="member"
+)
 
     db.add(book)
 
@@ -207,7 +207,7 @@ def test_loan_book():
 
     assert loan is not None
 
-    assert loan.status == "Borrowed"
+    assert loan.status == "borrowed"
 
     updated_book = db.query(Book).filter(
 
@@ -237,14 +237,13 @@ def test_return_book():
     )
 
     member = Member(
-
-        name="Return Member",
-
-        email=f"{uuid.uuid4()}@example.com",
-
-        phone="03110000000"
-
-    )
+    name="Return Member",
+    username=f"user_{uuid.uuid4().hex[:8]}",
+    email=f"{uuid.uuid4()}@example.com",
+    phone="03110000000",
+    hashed_password=hash_password("password123"),
+    role="member"
+)
 
     db.add(book)
 
@@ -262,7 +261,7 @@ def test_return_book():
 
         member_id=member.id,
 
-        status="Borrowed"
+        status="borrowed"
 
     )
 
@@ -292,7 +291,7 @@ def test_return_book():
 
     ).first()
 
-    assert updated_loan.status == "Returned"
+    assert updated_loan.status == "returned"
 
     assert updated_loan.return_date is not None
 

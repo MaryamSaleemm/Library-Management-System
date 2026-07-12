@@ -23,6 +23,7 @@ from database import SessionLocal
 from models import Book
 from models import Member
 from models import Loan
+from auth import hash_password
 
 
 # BOOK OPERATIONS
@@ -139,14 +140,15 @@ def register_member(name, email, phone):
 
     try:
 
+        username = email.split("@")[0]
+
         member = Member(
-
             name=name,
-
+            username=username,
             email=email,
-
-            phone=phone
-
+            phone=phone,
+            hashed_password=hash_password("password123"),
+            role="member"
         )
 
         db.add(member)
@@ -161,7 +163,6 @@ def register_member(name, email, phone):
     finally:
 
         db.close()
-
 
 def list_members():
 
@@ -225,7 +226,7 @@ def loan_book(book_id, member_id):
 
             return_date=None,
 
-            status="Borrowed"
+            status="borrowed"
 
         )
 
@@ -257,7 +258,7 @@ def return_book(book_id):
 
             Loan.book_id == book_id,
 
-            Loan.status == "Borrowed"
+            Loan.status == "borrowed"
 
         ).first()
 
@@ -269,7 +270,7 @@ def return_book(book_id):
         # Update loan
         loan.return_date = date.today()
 
-        loan.status = "Returned"
+        loan.status = "returned"
 
         # Make book 
         # available again
