@@ -41,13 +41,14 @@ def get_books(
     books = (
         db.query(Book)
         .filter(
-            Book.available == True,
-            Book.is_deleted == False
+            Book.available.is_(True),
+            Book.is_deleted.is_(False)
         )
         .all()
     )
 
     return books
+
 
 # GET BOOK BY ID
 
@@ -66,7 +67,7 @@ def get_book(
         db.query(Book)
         .filter(
             Book.id == book_id,
-            Book.is_deleted == False
+            Book.is_deleted.is_(False)
         )
         .first()
     )
@@ -79,6 +80,7 @@ def get_book(
         )
 
     return book
+
 
 # SEARCH BOOK
 
@@ -97,13 +99,14 @@ def search_books(
         db.query(Book)
         .filter(
             Book.title.ilike(f"%{title}%"),
-            Book.available == True,
-            Book.is_deleted == False
+            Book.available.is_(True),
+            Book.is_deleted.is_(False)
         )
         .all()
     )
 
     return books
+
 
 # ADD BOOK
 
@@ -124,7 +127,7 @@ def create_book(
         .filter(
             Book.title == book.title,
             Book.author == book.author,
-            Book.is_deleted == False
+            Book.is_deleted.is_(False)
         )
         .first()
     )
@@ -169,7 +172,7 @@ def update_book(
         db.query(Book)
         .filter(
             Book.id == book_id,
-            Book.is_deleted == False
+            Book.is_deleted.is_(False)
         )
         .first()
     )
@@ -193,6 +196,7 @@ def update_book(
 
     return book
 
+
 # SOFT DELETE BOOK
 
 @router.delete(
@@ -210,7 +214,7 @@ def delete_book(
         db.query(Book)
         .filter(
             Book.id == book_id,
-            Book.is_deleted == False
+            Book.is_deleted.is_(False)
         )
         .first()
     )

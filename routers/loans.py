@@ -8,8 +8,6 @@ from fastapi import status
 from sqlalchemy.orm import Session
 
 from dependencies import get_db
-# from fastapi import BackgroundTasks
-from services.notification_service import send_borrow_notification
 from tasks import send_borrow_notification
 
 from auth import (
@@ -42,7 +40,6 @@ router = APIRouter(
     summary="Borrow Book",
     description="Borrow an available book."
 )
-
 def borrow_book(
     book_id: int,                       # Reads /borrow/5 and stores book_id = 5
     # background_tasks: BackgroundTasks,  # FastAPI automatically creates one BackgroundTask object.
@@ -124,18 +121,19 @@ def borrow_book(
 
     db.refresh(new_loan)
 
-#     background_tasks.add_task( # run after response to user
-#         send_borrow_notification,
-#         current_user.username,
-#         book.title
-# )
+    # background_tasks.add_task( # run after response to user
+    #     send_borrow_notification,
+    #     current_user.username,
+    #     book.title
+    # )
 
     send_borrow_notification.delay(
-    current_user.username,
-    book.title
-)
+        current_user.username,
+        book.title
+    )
 
     return new_loan
+
 
 # RETURN BOOK
 
@@ -191,6 +189,7 @@ def return_book(
 
     return loan
 
+
 # MY LOANS
 
 @router.get(
@@ -208,6 +207,7 @@ def my_loans(
     ).all()
 
     return loans
+
 
 # VIEW ALL LOANS (LIBRARIAN)
 

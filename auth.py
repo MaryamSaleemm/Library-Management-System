@@ -13,11 +13,11 @@ from jose import jwt
 
 from passlib.context import CryptContext  # Used for password hashing
 
-from fastapi import Depends # Dependency Injection
-from fastapi import HTTPException # Allows returning proper HTTP errors
+from fastapi import Depends  # Dependency Injection
+from fastapi import HTTPException  # Allows returning proper HTTP errors
 from fastapi import status
 
-from fastapi.security import OAuth2PasswordBearer # this create authorize button inside swagger
+from fastapi.security import OAuth2PasswordBearer  # this create authorize button inside swagger
 
 from dependencies import get_db
 from sqlalchemy.orm import Session
@@ -27,16 +27,16 @@ load_dotenv()
 
 # JWT Configuration
 
-SECRET_KEY = os.getenv("SECRET_KEY")  #  a private key used to sign and verify JWT tokens
+SECRET_KEY = os.getenv("SECRET_KEY")  # a private key used to sign and verify JWT tokens
 
-ALGORITHM = "HS256" #  a standard symmetric-key JWT signing method.
+ALGORITHM = "HS256"  # a standard symmetric-key JWT signing method.
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # OAuth2
 
-oauth2_scheme = OAuth2PasswordBearer(       # "Protected endpoints should expect a Bearer token in the Authorization header."
-    tokenUrl="/users/login"                 # Which endpoint generates the token?
+oauth2_scheme = OAuth2PasswordBearer(  # "Protected endpoints should expect a Bearer token in the Authorization header."
+    tokenUrl="/users/login"  # Which endpoint generates the token?
 )
 
 # Password Hashing
@@ -47,7 +47,7 @@ pwd_context = CryptContext(
 )
 
 
-def hash_password(password: str): # signup call this and the password is hashed and the db stores hashed password
+def hash_password(password: str):
 
     return pwd_context.hash(password)
 
@@ -62,25 +62,26 @@ def verify_password(  # after the user signup , login use this method, bycrypt h
         hashed_password
     )
 
+
 # JWT
 
-def create_access_token(data: dict): # Called after successful login
+def create_access_token(data: dict):  # Called after successful login
 
-    to_encode = data.copy()          # copies the dic never modify the original
+    to_encode = data.copy()  # copies the dic never modify the original
 
     expire = datetime.now(
         timezone.utc
-    ) + timedelta(              # add time after which token expires 
+    ) + timedelta(  # add time after which token expires
         minutes=ACCESS_TOKEN_EXPIRE_MINUTES
     )
 
-    to_encode.update(       # adds expiration time to the dic
+    to_encode.update(  # adds expiration time to the dic
         {
             "exp": expire
         }
     )
 
-    return jwt.encode(      # convert dic to jwt and return it to the user
+    return jwt.encode(  # convert dic to jwt and return it to the user
         to_encode,
         SECRET_KEY,
         algorithm=ALGORITHM
@@ -108,11 +109,12 @@ def verify_access_token(token: str):
 
         return None
 
+
 # Logged-in User
 
 def get_current_user(
 
-    token: str = Depends(oauth2_scheme), # FastAPI automatically reads the token from the request header.
+    token: str = Depends(oauth2_scheme),  # FastAPI automatically reads the token from the request header.
 
     db: Session = Depends(get_db)
 
@@ -135,10 +137,11 @@ def get_current_user(
 
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
+            detail="User not found."
         )
 
     return user
+
 
 # Librarian Authorization
 

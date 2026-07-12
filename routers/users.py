@@ -83,7 +83,7 @@ def signup(
     response_model=Token
 )
 def login(
-    form_data: OAuth2PasswordRequestFormStrict  = Depends(),
+    form_data: OAuth2PasswordRequestFormStrict = Depends(),
     db: Session = Depends(get_db)
 ):
 
@@ -116,6 +116,7 @@ def login(
         "access_token": access_token,
         "token_type": "bearer"
     }
+
 
 # CURRENT USER
 
