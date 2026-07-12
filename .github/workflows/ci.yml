@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+name: Continuous Integration
 
 on:
   pull_request:
@@ -9,6 +9,8 @@ on:
 
   push:
     branches:
+      - integration
+      - staging
       - main
 
 permissions:
@@ -17,7 +19,7 @@ permissions:
 
 jobs:
 
-  lint-test-build:
+  test:
 
     runs-on: ubuntu-latest
 
@@ -41,19 +43,36 @@ jobs:
           --health-timeout=5s
           --health-retries=5
 
+      redis:
+
+        image: redis:7
+
+        ports:
+          - 6379:6379
+
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     env:
-      DB_HOST: ${{ secrets.DB_HOST }}
-      DB_PORT: ${{ secrets.DB_PORT }}
-      DB_NAME: ${{ secrets.DB_NAME }}
-      DB_USER: ${{ secrets.DB_USER }}
-      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_NAME: library
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
 
     steps:
 
       - name: Checkout Repository
         uses: actions/checkout@v5
 
-      - name: Set Up Python
+      - name: Setup Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -63,38 +82,46 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Verify PostgreSQL Connection
+      - name: Verify PostgreSQL
         run: |
           python - <<EOF
-          import os
           import psycopg2
 
           conn = psycopg2.connect(
-              host=os.environ["DB_HOST"],
-              database=os.environ["DB_NAME"],
-              user=os.environ["DB_USER"],
-              password=os.environ["DB_PASSWORD"],
-              port=os.environ["DB_PORT"]
+              host="localhost",
+              database="library",
+              user="postgres",
+              password="postgres",
+              port=5432
           )
 
-          print("PostgreSQL Connected Successfully")
+          print("PostgreSQL Connected")
           conn.close()
           EOF
 
-      - name: Run Alembic Migration
+      - name: Verify Redis
         run: |
-          alembic upgrade head
+          python - <<EOF
+          import redis
+
+          r = redis.Redis(host="localhost", port=6379)
+
+          assert r.ping()
+
+          print("Redis Connected")
+          EOF
+
+      - name: Run Alembic Migration
+        run: alembic upgrade head
 
       - name: Run Flake8
-        run: |
-          flake8 . --exclude=migrations
+        run: flake8 . --exclude=migrations
 
-      - name: Run Pytest
-        run: |
-          pytest -v
+      - name: Run Tests
+        run: pytest -v
 
-      - name: Login to GitHub Container Registry
-        if: github.event_name == 'push'
+      - name: Login to GHCR
+        if: github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -102,78 +129,20 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build Docker Image
-        if: github.event_name == 'push'
+        if: github.ref == 'refs/heads/main'
         run: |
-          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          docker build -t ghcr.io/$OWNER/library-management-system:latest .
 
-      - name: Push Docker Image
-        if: github.event_name == 'push'
-        run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+
+          docker build \
+          -t ghcr.io/$OWNER/library-management-system:${{ github.sha }} \
+          -t ghcr.io/$OWNER/library-management-system:latest .
+
+      - name: Push Docker Images
+        if: github.ref == 'refs/heads/main'
+        run: |
+
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+
+          docker push ghcr.io/$OWNER/library-management-system:${{ github.sha }}
           docker push ghcr.io/$OWNER/library-management-system:latest
-
-  deploy:
-
-    needs: lint-test-build
-
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    runs-on: ubuntu-latest
-
-    steps:
-
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.2.2
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-
-          script: |
-
-            echo "Starting PostgreSQL..."
-
-            docker start postgres_db || true
-
-            echo "Pulling latest image..."
-
-            docker pull ghcr.io/maryamsaleemm/library-management-system:latest
-
-            echo "Stopping old application..."
-
-            docker stop library_app || true
-            docker rm library_app || true
-
-            echo "Running Alembic migrations..."
-
-            docker run --rm \
-              --network host \
-              -e DB_HOST=localhost \
-              -e DB_PORT=5432 \
-              -e DB_NAME=library \
-              -e DB_USER=postgres \
-              -e DB_PASSWORD=postgres \
-              --entrypoint alembic \
-              ghcr.io/maryamsaleemm/library-management-system:latest \
-              upgrade head
-
-            echo "Starting new application..."
-
-            docker run -d \
-              --name library_app \
-              --network host \
-              -e DB_HOST=localhost \
-              -e DB_PORT=5432 \
-              -e DB_NAME=library \
-              -e DB_USER=postgres \
-              -e DB_PASSWORD=postgres \
-              ghcr.io/maryamsaleemm/library-management-system:latest
-
-            docker ps
-
-
-          #  the PostgreSQL service initialization variables
-          #  because GitHub Actions doesn't allow secrets in the services.env section. Since that PostgreSQL 
-          #  instance is a temporary CI container created only
-          #  for the testing, those values are not production secrets."
