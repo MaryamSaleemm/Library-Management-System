@@ -8,8 +8,9 @@ from fastapi import status
 from sqlalchemy.orm import Session
 
 from dependencies import get_db
-from tasks import send_borrow_notification
 
+from fastapi import BackgroundTasks
+from services.notification_service import send_borrow_notification
 from auth import (
     get_current_user,
     get_current_librarian
@@ -42,7 +43,7 @@ router = APIRouter(
 )
 def borrow_book(
     book_id: int,                       # Reads /borrow/5 and stores book_id = 5
-    # background_tasks: BackgroundTasks,  # FastAPI automatically creates one BackgroundTask object.
+    background_tasks: BackgroundTasks,  # FastAPI automatically creates one BackgroundTask object.
     db: Session = Depends(get_db),
     current_user: Member = Depends(get_current_user)
 ):
@@ -121,16 +122,13 @@ def borrow_book(
 
     db.refresh(new_loan)
 
-    # background_tasks.add_task( # run after response to user
-    #     send_borrow_notification,
-    #     current_user.username,
-    #     book.title
-    # )
-
-    send_borrow_notification.delay(
+    background_tasks.add_task(  # run after response to user
+        send_borrow_notification,
         current_user.username,
         book.title
     )
+
+    
 
     return new_loan
 
