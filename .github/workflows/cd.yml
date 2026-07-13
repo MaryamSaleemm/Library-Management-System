@@ -1,39 +1,28 @@
 name: Continuous Deployment
 
 on:
-
   workflow_run:
-
     workflows:
-
       - Continuous Integration
-
     branches:
-
       - main
-
     types:
-
       - completed
 
 permissions:
   contents: read
 
 jobs:
-
   deploy:
-
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.2.2
 
         with:
-
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
@@ -49,10 +38,6 @@ jobs:
 
             docker start postgres_db || true
 
-            echo "Starting Redis"
-
-            docker start redis_db || true
-
             echo "Pull latest image"
 
             docker pull ghcr.io/maryamsaleemm/library-management-system:latest
@@ -62,12 +47,12 @@ jobs:
             docker stop library_app || true
             docker rm library_app || true
 
-            echo "Stopping old Celery"
+            echo "Removing old Celery container (if it exists)"
 
             docker stop celery_worker || true
             docker rm celery_worker || true
 
-            echo "Running Alembic"
+            echo "Running Alembic Migrations"
 
             docker run --rm \
               --network host \
@@ -91,35 +76,12 @@ jobs:
               -e DB_NAME=${{ secrets.DB_NAME }} \
               -e DB_USER=${{ secrets.DB_USER }} \
               -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-              -e REDIS_HOST=${{ secrets.REDIS_HOST }} \
-              -e REDIS_PORT=${{ secrets.REDIS_PORT }} \
               ghcr.io/maryamsaleemm/library-management-system:latest
 
-            echo "Starting Celery Worker"
-
-            docker run -d \
-              --restart unless-stopped \
-              --name celery_worker \
-              --network host \
-              -e DB_HOST=${{ secrets.DB_HOST }} \
-              -e DB_PORT=${{ secrets.DB_PORT }} \
-              -e DB_NAME=${{ secrets.DB_NAME }} \
-              -e DB_USER=${{ secrets.DB_USER }} \
-              -e DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-              -e REDIS_HOST=${{ secrets.REDIS_HOST }} \
-              -e REDIS_PORT=${{ secrets.REDIS_PORT }} \
-              --entrypoint celery \
-              ghcr.io/maryamsaleemm/library-management-system:latest \
-              -A tasks worker --loglevel=info
-
-            echo "Checking Running Containers"
+            echo "Running Containers"
 
             docker ps
 
-            echo "FastAPI Logs"
+            echo "Application Logs"
 
             docker logs library_app --tail 20
-
-            echo "Celery Logs"
-
-            docker logs celery_worker --tail 20
