@@ -18,7 +18,6 @@ permissions:
   packages: write
 
 jobs:
-
   test:
 
     runs-on: ubuntu-latest
@@ -26,7 +25,6 @@ jobs:
     services:
 
       postgres:
-
         image: postgres:16
 
         env:
@@ -43,29 +41,12 @@ jobs:
           --health-timeout=5s
           --health-retries=5
 
-      redis:
-
-        image: redis:7
-
-        ports:
-          - 6379:6379
-
-        options: >-
-          --health-cmd="redis-cli ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-
     env:
-
       DB_HOST: localhost
       DB_PORT: 5432
       DB_NAME: library
       DB_USER: postgres
       DB_PASSWORD: postgres
-
-      REDIS_HOST: localhost
-      REDIS_PORT: 6379
 
     steps:
 
@@ -99,18 +80,6 @@ jobs:
           conn.close()
           EOF
 
-      - name: Verify Redis
-        run: |
-          python - <<EOF
-          import redis
-
-          r = redis.Redis(host="localhost", port=6379)
-
-          assert r.ping()
-
-          print("Redis Connected")
-          EOF
-
       - name: Run Alembic Migration
         run: alembic upgrade head
 
@@ -135,8 +104,8 @@ jobs:
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
 
           docker build \
-          -t ghcr.io/$OWNER/library-management-system:${{ github.sha }} \
-          -t ghcr.io/$OWNER/library-management-system:latest .
+            -t ghcr.io/$OWNER/library-management-system:${{ github.sha }} \
+            -t ghcr.io/$OWNER/library-management-system:latest .
 
       - name: Push Docker Images
         if: github.ref == 'refs/heads/main'
