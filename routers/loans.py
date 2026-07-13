@@ -122,7 +122,7 @@ def borrow_book(
 
     db.refresh(new_loan)
 
-    background_tasks.add_task( # run after response to user
+    background_tasks.add_task(  # run after response to user
         send_borrow_notification,
         current_user.username,
         book.title
